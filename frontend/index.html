@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIDS — Anomaly-Based Intrusion Detection System</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  /* ---- Reset & Base ---- */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d0f14;
+    --bg-card: #13161e;
+    --bg-input: #1a1d28;
+    --border: rgba(255,255,255,0.08);
+    --text: #e8eaf0;
+    --muted: #7a7f8e;
+    --green: #4caf87;
+    --red: #e05252;
+    --blue: #5b9cf6;
+    --font-mono: 'Courier New', monospace;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  /* ---- Header ---- */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 16px;
+    border-bottom: 0.5px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .header-title { font-size: 15px; font-weight: bold; letter-spacing: 0.1em; }
+  .header-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border: 0.5px solid var(--border);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot-green { background: var(--green); }
+  .dot-red { background: var(--red); }
+
+  /* ---- Grid ---- */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  @media (max-width: 768px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+
+  /* ---- Cards ---- */
+  .card {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .metric-card {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .metric-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+  .metric-value { font-size: 24px; font-weight: bold; }
+
+  /* ---- Section Titles ---- */
+  .section-title {
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* ---- Form Elements ---- */
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .field-group label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 3px; }
+  .field-group input,
+  .field-group select {
+    width: 100%;
+    background: var(--bg-input);
+    border: 0.5px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 8px;
+    outline: none;
+  }
+  .field-group input:focus, .field-group select:focus {
+    border-color: var(--blue);
+  }
+
+  /* ---- Buttons ---- */
+  .btn {
+    padding: 7px 18px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    border-radius: 6px;
+    cursor: pointer;
+    border: 0.5px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: var(--bg-input); }
+  .btn-primary { background: rgba(91,156,246,0.15); border-color: var(--blue); color: var(--blue); }
+  .btn-primary:hover { background: rgba(91,156,246,0.25); }
+  .btn-sim { background: rgba(76,175,135,0.15); border-color: var(--green); color: var(--green); }
+  .btn-sim:hover { background: rgba(76,175,135,0.25); }
+  .btn-danger { background: rgba(224,82,82,0.15); border-color: var(--red); color: var(--red); }
+
+  /* ---- Badge ---- */
+  .badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+  }
+  .badge-normal { background: rgba(76,175,135,0.15); color: var(--green); border: 0.5px solid rgba(76,175,135,0.3); }
+  .badge-anomaly { background: rgba(224,82,82,0.15); color: var(--red); border: 0.5px solid rgba(224,82,82,0.3); }
+
+  /* ---- Score Bar ---- */
+  .score-bar-wrap {
+    height: 6px;
+    background: var(--bg-input);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .score-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease, background 0.4s ease; }
+
+  /* ---- Tabs ---- */
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 14px; }
+  .tab {
+    padding: 4px 12px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    border-radius: 6px;
+    border: 0.5px solid var(--border);
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+  }
+  .tab.active { background: var(--bg-input); color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+  /* ---- Range Slider ---- */
+  .sim-control { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .sim-label { font-size: 11px; color: var(--muted); min-width: 90px; }
+  input[type=range] { -webkit-appearance: none; height: 3px; background: var(--bg-input); border-radius: 2px; flex: 1; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--blue);
+    cursor: pointer;
+  }
+
+  /* ---- Log ---- */
+  .log-header {
+    display: grid;
+    grid-template-columns: 80px 80px 100px 1fr;
+    gap: 8px;
+    padding-bottom: 6px;
+    border-bottom: 0.5px solid var(--border);
+    margin-bottom: 4px;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .log-row {
+    display: grid;
+    grid-template-columns: 80px 80px 100px 1fr;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 11px;
+    align-items: center;
+  }
+  .log-row:last-child { border-bottom: none; }
+
+  /* ---- Upload Area ---- */
+  .upload-area {
+    border: 0.5px dashed var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .upload-area:hover { border-color: var(--blue); color: var(--blue); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">AIDS / ANOMALY-BASED INTRUSION DETECTION</div>
+      <div class="header-sub">Isolation Forest + One-Class SVM — UNSW-NB15 Dataset</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="status-pill">
+        <span class="dot" id="api-dot" style="background:var(--red)"></span>
+        <span id="api-label">backend offline</span>
+      </div>
+      <button class="btn" onclick="checkHealth()" style="font-size:11px;padding:4px 10px;">ping</button>
+    </div>
+  </div>
+
+  <!-- Metrics Row -->
+  <div class="grid-4">
+    <div class="metric-card">
+      <div class="metric-label">Total Analyzed</div>
+      <div class="metric-value" id="m-total">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Anomalies</div>
+      <div class="metric-value" id="m-anomalies" style="color:var(--red)">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Normal</div>
+      <div class="metric-value" id="m-normal" style="color:var(--green)">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Anomaly Rate</div>
+      <div class="metric-value" id="m-rate">0%</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- Left Column: Predict + Result -->
+    <div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="section-title">predict single record</div>
+        <div class="tab-bar">
+          <button class="tab active" onclick="switchTab('manual',this)">manual input</button>
+          <button class="tab" onclick="switchTab('upload',this)">upload csv</button>
+        </div>
+
+        <div id="tab-manual">
+          <div class="field-row">
+            <div class="field-group">
+              <label>protocol</label>
+              <select id="f-proto">
+                <option>tcp</option><option>udp</option><option>icmp</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label>service</label>
+              <select id="f-service">
+                <option>http</option><option>ftp</option><option>dns</option>
+                <option>smtp</option><option>ssh</option><option>-</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label>state</label>
+              <select id="f-state">
+                <option>FIN</option><option>INT</option><option>CON</option>
+                <option>REQ</option><option>RST</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label>duration (s)</label>
+              <input type="number" id="f-dur" value="0.121" step="0.001">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label>src packets</label>
+              <input type="number" id="f-spkts" value="6">
+            </div>
+            <div class="field-group">
+              <label>dst packets</label>
+              <input type="number" id="f-dpkts" value="4">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label>src bytes</label>
+              <input type="number" id="f-sbytes" value="258">
+            </div>
+            <div class="field-group">
+              <label>dst bytes</label>
+              <input type="number" id="f-dbytes" value="172">
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label>src TTL</label>
+              <input type="number" id="f-sttl" value="64">
+            </div>
+            <div class="field-group">
+              <label>src jitter (ms)</label>
+              <input type="number" id="f-sjit" value="0.0" step="0.1">
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-upload" style="display:none;">
+          <div class="upload-area" onclick="document.getElementById('csv-file').click()">
+            click to upload CSV — max 10,000 records
+          </div>
+          <input type="file" id="csv-file" accept=".csv" style="display:none;" onchange="handleFileUpload(event)">
+          <div id="upload-status" style="font-size:11px;color:var(--muted);margin-top:8px;"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap;">
+          <select id="model-select" style="font-size:11px;padding:5px 8px;border-radius:6px;border:0.5px solid var(--border);background:var(--bg-input);color:var(--text);font-family:var(--font-mono);">
+            <option value="isolation_forest">isolation forest</option>
+            <option value="one_class_svm">one-class svm</option>
+          </select>
+          <button class="btn btn-primary" onclick="predictSingle()">run prediction</button>
+          <button class="btn" onclick="loadMetrics()" style="font-size:11px;">load metrics</button>
+        </div>
+      </div>
+
+      <!-- Result Card -->
+      <div class="card">
+        <div class="section-title">prediction result</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div id="result-badge" class="badge badge-normal" style="font-size:14px;">--</div>
+          <div>
+            <div id="result-model" style="font-size:12px;color:var(--muted);">no prediction yet</div>
+            <div id="result-ts" style="font-size:10px;color:var(--muted);margin-top:2px;"></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+            <span style="color:var(--muted);">anomaly score (lower = more anomalous)</span>
+            <span id="result-score" style="font-weight:bold;"></span>
+          </div>
+          <div class="score-bar-wrap">
+            <div class="score-bar" id="score-bar" style="width:0%;background:var(--green);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:3px;">
+            <span>anomalous (-0.6)</span><span>normal (0.0)</span>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;font-size:12px;border-top:0.5px solid var(--border);padding-top:10px;">
+          <span style="color:var(--muted);">confidence</span>
+          <span id="result-confidence" style="font-weight:bold;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Simulation + Charts -->
+    <div>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="section-title">traffic simulation</div>
+        <div class="sim-control">
+          <span class="sim-label">records (n)</span>
+          <input type="range" id="sim-n" min="5" max="200" value="20" step="5">
+          <span id="sim-n-out" style="font-size:12px;min-width:30px;">20</span>
+        </div>
+        <div class="sim-control">
+          <span class="sim-label">attack ratio</span>
+          <input type="range" id="sim-ratio" min="0" max="100" value="30" step="5">
+          <span id="sim-ratio-out" style="font-size:12px;min-width:34px;">30%</span>
+        </div>
+        <div class="sim-control" style="margin-bottom:0;">
+          <span class="sim-label">threshold</span>
+          <input type="range" id="sim-thresh" min="-60" max="0" value="-10" step="1">
+          <span id="sim-thresh-out" style="font-size:12px;min-width:40px;">-0.10</span>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn btn-sim" onclick="runSimulation()">run simulation</button>
+          <button class="btn btn-danger" onclick="clearData()">clear all</button>
+        </div>
+        <div id="sim-result" style="margin-top:8px;font-size:11px;color:var(--muted);line-height:1.6;"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;">
+        <div class="section-title">anomaly score trend</div>
+        <div style="position:relative;width:100%;height:160px;">
+          <canvas id="trendChart" role="img" aria-label="Line chart of anomaly score over recent predictions">Anomaly score trend over recent predictions.</canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">normal vs anomaly count</div>
+        <div style="position:relative;width:100%;height:110px;">
+          <canvas id="distChart" role="img" aria-label="Bar chart of normal vs anomaly prediction counts">Prediction count: normal and anomaly.</canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model Metrics Panel -->
+  <div class="card" style="margin-bottom:14px;" id="metrics-panel" style="display:none;">
+    <div class="section-title">model performance metrics (from training)</div>
+    <div id="metrics-content" style="font-size:12px;color:var(--muted);">
+      click "load metrics" to fetch from backend
+    </div>
+  </div>
+
+  <!-- Prediction Log -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div class="section-title" style="margin-bottom:0;">prediction log</div>
+      <div style="font-size:11px;color:var(--muted);" id="log-count">0 entries</div>
+    </div>
+    <div class="log-header">
+      <span>time</span><span>result</span><span>score</span><span>model</span>
+    </div>
+    <div id="log-container" style="max-height:200px;overflow-y:auto;">
+      <div style="text-align:center;padding:20px 0;color:var(--muted);">
+        no predictions yet
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+const API = 'http://localhost:8000';
+let totalCount = 0, anomalyCount = 0, normalCount = 0;
+let trendData = [], logEntries = [];
+let trendChart, distChart;
+
+// ---- Slider listeners ----
+document.getElementById('sim-n').addEventListener('input', function() {
+  document.getElementById('sim-n-out').textContent = this.value;
+});
+document.getElementById('sim-ratio').addEventListener('input', function() {
+  document.getElementById('sim-ratio-out').textContent = this.value + '%';
+});
+document.getElementById('sim-thresh').addEventListener('input', function() {
+  document.getElementById('sim-thresh-out').textContent = (this.value / 100).toFixed(2);
+});
+
+// ---- Chart init ----
+function initCharts() {
+  trendChart = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'anomaly score',
+          data: [],
+          borderColor: '#5b9cf6',
+          backgroundColor: 'rgba(91,156,246,0.07)',
+          borderWidth: 1.5,
+          pointRadius: 2,
+          tension: 0.3,
+          fill: true
+        },
+        {
+          label: 'threshold',
+          data: [],
+          borderColor: '#e05252',
+          borderWidth: 1,
+          borderDash: [4, 3],
+          pointRadius: 0,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 10 }, color: '#7a7f8e', maxTicksLimit: 8 },
+             grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { min: -0.65, max: 0.15,
+             ticks: { font: { size: 10 }, color: '#7a7f8e' },
+             grid: { color: 'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+
+  distChart = new Chart(document.getElementById('distChart'), {
+    type: 'bar',
+    data: {
+      labels: ['normal', 'anomaly'],
+      datasets: [{ data: [0, 0], backgroundColor: ['#4caf87', '#e05252'], borderRadius: 4 }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 11 }, color: '#7a7f8e' },
+             grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { beginAtZero: true, ticks: { font: { size: 10 }, color: '#7a7f8e', stepSize: 1 },
+             grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
+  });
+}
+
+// ---- UI Updates ----
+function updateMetrics() {
+  document.getElementById('m-total').textContent = totalCount;
+  document.getElementById('m-anomalies').textContent = anomalyCount;
+  document.getElementById('m-normal').textContent = normalCount;
+  const rate = totalCount > 0 ? ((anomalyCount / totalCount) * 100).toFixed(1) : '0';
+  document.getElementById('m-rate').textContent = rate + '%';
+}
+
+function updateCharts(score) {
+  const thresh = document.getElementById('sim-thresh').value / 100;
+  const now = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  trendData.push({ t: now, s: score });
+  if (trendData.length > 60) trendData.shift();
+  trendChart.data.labels = trendData.map(d => d.t);
+  trendChart.data.datasets[0].data = trendData.map(d => d.s);
+  trendChart.data.datasets[1].data = trendData.map(() => thresh);
+  trendChart.update('none');
+  distChart.data.datasets[0].data = [normalCount, anomalyCount];
+  distChart.update('none');
+}
+
+function addLogEntry(prediction, score, model) {
+  const now = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  logEntries.unshift({ t: now, prediction, score, model });
+  if (logEntries.length > 500) logEntries.pop();
+  document.getElementById('log-count').textContent = logEntries.length + ' entries';
+  const c = document.getElementById('log-container');
+  c.innerHTML = logEntries.slice(0, 60).map(e => `
+    <div class="log-row">
+      <span style="color:var(--muted)">${e.t}</span>
+      <span class="badge ${e.prediction === 'anomaly' ? 'badge-anomaly' : 'badge-normal'}" style="font-size:10px;padding:2px 8px;">${e.prediction}</span>
+      <span style="font-family:var(--font-mono)">${parseFloat(e.score).toFixed(5)}</span>
+      <span style="color:var(--muted);font-size:10px;">${e.model}</span>
+    </div>`).join('');
+}
+
+function processResult(prediction, score, confidence, model) {
+  const isAnomaly = prediction === 'anomaly';
+  totalCount++; isAnomaly ? anomalyCount++ : normalCount++;
+
+  const badge = document.getElementById('result-badge');
+  badge.textContent = prediction.toUpperCase();
+  badge.className = 'badge ' + (isAnomaly ? 'badge-anomaly' : 'badge-normal');
+
+  document.getElementById('result-model').textContent = model;
+  document.getElementById('result-ts').textContent = new Date().toISOString();
+  document.getElementById('result-score').textContent = parseFloat(score).toFixed(6);
+  document.getElementById('result-confidence').textContent = (confidence * 100).toFixed(1) + '%';
+
+  const barPct = Math.max(0, Math.min(100, confidence * 100));
+  const bar = document.getElementById('score-bar');
+  bar.style.width = barPct + '%';
+  bar.style.background = isAnomaly ? 'var(--red)' : 'var(--green)';
+
+  updateCharts(parseFloat(score));
+  updateMetrics();
+  addLogEntry(prediction, score, model);
+}
+
+// ---- API Calls ----
+async function checkHealth() {
+  try {
+    const res = await fetch(`${API}/`);
+    const data = await res.json();
+    document.getElementById('api-dot').style.background = 'var(--green)';
+    document.getElementById('api-label').textContent =
+      data.models_loaded ? 'backend online — models loaded' : 'backend online — no models';
+  } catch(e) {
+    document.getElementById('api-dot').style.background = 'var(--red)';
+    document.getElementById('api-label').textContent = 'backend offline (demo mode active)';
+  }
+}
+
+function buildPayload() {
+  return {
+    dur: parseFloat(document.getElementById('f-dur').value) || 0.121,
+    proto: document.getElementById('f-proto').value,
+    service: document.getElementById('f-service').value,
+    state: document.getElementById('f-state').value,
+    spkts: parseInt(document.getElementById('f-spkts').value) || 6,
+    dpkts: parseInt(document.getElementById('f-dpkts').value) || 4,
+    sbytes: parseInt(document.getElementById('f-sbytes').value) || 258,
+    dbytes: parseInt(document.getElementById('f-dbytes').value) || 172,
+    sttl: parseInt(document.getElementById('f-sttl').value) || 64,
+    dttl: 252, sloss: 0, dloss: 0, sload: 16980.0, dload: 11320.0,
+    smeansz: 43.0, dmeansz: 43.0, trans_depth: 1, res_bdy_len: 0,
+    sjit: parseFloat(document.getElementById('f-sjit').value) || 0.0,
+    djit: 0.0, stime: 1421927011.0, ltime: 1421927011.0,
+    sintpkt: 24.3, dintpkt: 0.0, tcprtt: 0.0, synack: 0.0, ackdat: 0.0,
+    is_sm_ips_ports: 0, ct_state_ttl: 2, ct_flw_http_mthd: 0,
+    is_ftp_login: 0, ct_ftp_cmd: 0, ct_srv_src: 1, ct_srv_dst: 1,
+    ct_dst_ltm: 1, ct_src_ltm: 1, ct_src_dport_ltm: 1,
+    ct_dst_sport_ltm: 1, ct_dst_src_ltm: 1
+  };
+}
+
+async function predictSingle() {
+  const model = document.getElementById('model-select').value;
+  const payload = buildPayload();
+  try {
+    const res = await fetch(`${API}/predict?model=${model}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    processResult(data.prediction, data.anomaly_score, data.confidence, data.model_used);
+  } catch(e) {
+    // Fallback: local demo mode when backend is offline
+    const thresh = document.getElementById('sim-thresh').value / 100;
+    const isAttack = payload.spkts > 100 || payload.sjit > 50 || payload.sttl < 10;
+    const score = isAttack ? -(Math.random() * 0.3 + 0.25) : -(Math.random() * 0.08 + 0.01);
+    const isAnomaly = score < thresh;
+    const conf = 0.65 + Math.random() * 0.25;
+    processResult(isAnomaly ? 'anomaly' : 'normal', score, conf, model + ' (local demo)');
+  }
+}
+
+async function runSimulation() {
+  const n = parseInt(document.getElementById('sim-n').value);
+  const ratio = document.getElementById('sim-ratio').value / 100;
+  const thresh = document.getElementById('sim-thresh').value / 100;
+  const model = document.getElementById('model-select').value;
+  document.getElementById('sim-result').textContent = 'running...';
+
+  // Update threshold on backend
+  try {
+    await fetch(`${API}/threshold`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ threshold: thresh })
+    });
+  } catch(e) {}
+
+  try {
+    const res = await fetch(`${API}/simulate?n=${n}&attack_ratio=${ratio}&model=${model}`);
+    const data = await res.json();
+    data.records.forEach(r => {
+      totalCount++; r.prediction === 'anomaly' ? anomalyCount++ : normalCount++;
+      updateCharts(r.anomaly_score);
+      addLogEntry(r.prediction, r.anomaly_score, r.model_used || model);
+    });
+    updateMetrics();
+    document.getElementById('sim-result').textContent =
+      `complete — ${data.anomalies_detected}/${n} anomalies | sim accuracy: ${(data.simulation_accuracy*100).toFixed(1)}%`;
+  } catch(e) {
+    // Local demo simulation
+    for (let i = 0; i < n; i++) {
+      const isAttack = Math.random() < ratio;
+      const score = isAttack ? -(Math.random()*0.35+0.2) : -(Math.random()*0.10+0.01);
+      const isAnomaly = score < thresh;
+      totalCount++; isAnomaly ? anomalyCount++ : normalCount++;
+      updateCharts(score);
+      addLogEntry(isAnomaly ? 'anomaly' : 'normal', score, model + ' (local)');
+    }
+    updateMetrics();
+    document.getElementById('sim-result').textContent =
+      `local demo simulation complete — ${anomalyCount} total anomalies detected (backend offline)`;
+  }
+}
+
+async function loadMetrics() {
+  const panel = document.getElementById('metrics-panel');
+  const content = document.getElementById('metrics-content');
+  panel.style.display = '';
+  try {
+    const res = await fetch(`${API}/metrics`);
+    const data = await res.json();
+    content.innerHTML = Object.entries(data).map(([modelName, m]) => `
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:bold;color:var(--blue);margin-bottom:6px;">${modelName.replace(/_/g,' ')}</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+          ${[['precision',m.precision],['recall',m.recall],['f1',m.f1],['fpr',m.false_positive_rate]].map(([k,v])=>`
+            <div style="background:var(--bg-input);border-radius:6px;padding:8px 10px;">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">${k}</div>
+              <div style="font-size:16px;font-weight:bold;">${(v*100).toFixed(1)}%</div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    content.innerHTML = '<span style="color:var(--muted);">backend offline — cannot fetch metrics</span>';
+  }
+}
+
+async function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const model = document.getElementById('model-select').value;
+  document.getElementById('upload-status').textContent = `uploading ${file.name}...`;
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const res = await fetch(`${API}/batch_predict?model=${model}`, {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    totalCount += data.total_records;
+    anomalyCount += data.anomaly_count;
+    normalCount += data.normal_count;
+    updateMetrics();
+    data.predictions.forEach(p => {
+      if (p.prediction) {
+        updateCharts(p.anomaly_score);
+        addLogEntry(p.prediction, p.anomaly_score, model);
+      }
+    });
+    document.getElementById('upload-status').textContent =
+      `processed ${data.total_records} records — ${data.anomaly_count} anomalies (${(data.anomaly_rate*100).toFixed(1)}%)`;
+  } catch(e) {
+    document.getElementById('upload-status').textContent = 'backend offline — upload requires running backend';
+  }
+}
+
+function clearData() {
+  totalCount = 0; anomalyCount = 0; normalCount = 0;
+  trendData = []; logEntries = [];
+  updateMetrics();
+  trendChart.data.labels = [];
+  trendChart.data.datasets[0].data = [];
+  trendChart.data.datasets[1].data = [];
+  trendChart.update();
+  distChart.data.datasets[0].data = [0, 0];
+  distChart.update();
+  document.getElementById('log-container').innerHTML =
+    '<div style="text-align:center;padding:20px 0;color:var(--muted);">no predictions yet</div>';
+  document.getElementById('log-count').textContent = '0 entries';
+  document.getElementById('sim-result').textContent = '';
+}
+
+function switchTab(tab, btn) {
+  document.getElementById('tab-manual').style.display = tab === 'manual' ? '' : 'none';
+  document.getElementById('tab-upload').style.display = tab === 'upload' ? '' : 'none';
+  document.querySelectorAll('.tab-bar .tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+initCharts();
+checkHealth();
+</script>
+</body>
+</html>
