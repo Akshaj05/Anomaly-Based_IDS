@@ -60,21 +60,12 @@ def load_unsw_nb15(filepath: str) -> pd.DataFrame:
 def preprocess(df: pd.DataFrame, scaler=None, encoders=None, fit=True):
     """
     Full preprocessing pipeline.
-
     Steps:
     1. Drop irrelevant identifier columns (IP addresses, ports as IDs)
     2. Handle missing values - UNSW-NB15 has some NaN in service/attack_cat
     3. Encode categorical features using LabelEncoder
     4. Scale numerical features using StandardScaler
     5. Return processed feature matrix X and label vector y
-
-    Why each step:
-    - Step 1: IP/port as raw strings carry no statistical meaning for ML
-    - Step 2: NaN rows would cause sklearn to throw errors
-    - Step 3: ML algorithms require numeric input; label encoding assigns
-              integer codes to protocol/service/state strings
-    - Step 4: Isolation Forest and SVM are distance-sensitive;
-              unscaled features like sbytes (millions) dominate sjit (microseconds)
     """
 
     # Step 1: Keep only our defined feature columns + label

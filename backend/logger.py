@@ -1,6 +1,4 @@
 """
-logger.py
----------
 Logs every prediction to a CSV file for audit, review,
 threshold tuning, and trend analysis.
 """

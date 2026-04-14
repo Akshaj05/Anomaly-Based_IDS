@@ -1,27 +1,15 @@
 """
-model_trainer.py
-----------------
-Trains Isolation Forest and One-Class SVM on UNSW-NB15 data.
-
 WHY ISOLATION FOREST for anomaly detection:
---------------------------------------------
 Standard classifiers need labelled attack examples to learn from.
 In real networks, attack traffic is rare and constantly evolving —
 you cannot label everything. Isolation Forest is unsupervised:
 it learns what "normal" looks like, then flags anything that
 deviates significantly.
 
-Mathematical Intuition (Isolation Forest):
-------------------------------------------
+Mathematical Intuition (Isolation Forest):\
 The algorithm builds an ensemble of random binary trees.
 For each sample, it randomly selects a feature, then randomly
 selects a split value between that feature's min and max.
-
-Key insight: ANOMALIES ARE EASIER TO ISOLATE.
-An anomalous point (e.g., a port scan sending 100,000 packets)
-sits in a sparse region of feature space. A random split will
-isolate it in very few steps. A normal point sits in a dense
-region and requires many splits to isolate.
 
 Anomaly score formula:
     s(x, n) = 2^(-E(h(x)) / c(n))
@@ -69,7 +57,6 @@ DATA_PATH = '../data/'
 MODEL_DIR = './models/'
 METRICS_PATH = './models/metrics.json'
 
-# How many normal-only samples to train on.
 # Isolation Forest is trained ONLY on normal traffic (semi-supervised).
 # This mimics real deployment: you train on your known-good baseline.
 TRAIN_NORMAL_SAMPLES = 50000
@@ -83,7 +70,6 @@ CONTAMINATION = 0.2
 # 200 gives good stability without being slow.
 N_ESTIMATORS = 200
 
-# max_samples: number of samples per tree. 'auto' uses min(256, n_samples).
 # 256 is the paper's recommended value — small enough for diverse trees.
 MAX_SAMPLES = 'auto'
 
@@ -96,14 +82,6 @@ OCSVM_GAMMA = 'scale'
 
 
 def load_train_test_data(data_path: str):
-    """
-    Load pre-split UNSW-NB15 training and testing datasets.
-    
-    This is better than raw files because:
-    - Already cleaned
-    - Already labeled
-    - No manual merging needed
-    """
 
     train_path = os.path.join(data_path, 'UNSW_NB15_training-set.csv')
     test_path = os.path.join(data_path, 'UNSW_NB15_testing-set.csv')
